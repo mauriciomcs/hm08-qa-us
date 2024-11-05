@@ -3,49 +3,105 @@ module.exports = {
     fromField: '#from',
     toField: '#to',
     phoneNumberField: '#phone',
-    codeField: '#code',
+    phoneCodeField: '#code',
+    cardNumberField: '#number',
+    cardCodeField: '.card-second-row #code',
+    messageToTheDriverField: '#comment',
+    
     // Buttons
+    supportiveTariff: 'div=Supportive',
     callATaxiButton: 'button=Call a taxi',
-    phoneNumberButton: '//div[starts-with(text(), "Phone number")]',
-    nextButton: 'button=Next',
-    confirmButton: 'button=Confirm',
+    phoneNumberButton: '//div[@class=\'np-button\']//div[contains(text(), \'Phone number\')]',
+    paymentMethodButton: '.pp-text',
+    nextButtonAddPhoneModal: 'button=Next',
+    confirmButtonAddPhoneModal: 'button=Confirm',
+    addCardButton: 'div=Add card',
+    linkCardButton: 'button=Link',
+    paymentMethodAddedCard: 'div=Card',
+    paymentMethodModalCloseButton: '.payment-picker .section.active .close-button',
+    blanketButton: '.switch',
+    blanketButtonStatus: '.switch-input',
+    iceCreamPlusButton: 'div=+',
+    orderButton: '.smart-button-main=Order',
+
     // Modals
-    phoneNumberModal: '.modal',
+    phoneNumberModal: '.number-picker .modal',
+    paymentMethodModal: '.payment-picker .modal',
+    carSearchModal: 'div=Car search',
+    driverWillArriveModal: 'div*=The driver will arrive',
+
+    // Helper function to click an element
+    async clickElement(selector) {
+        const element = await $(selector);
+        await element.waitForDisplayed();
+        await element.click();
+    },
+
     // Functions
-    fillAddresses: async function(from, to) {
-        const fromField = await $(this.fromField);
-        await fromField.setValue(from);
-        const toField = await $(this.toField);
-        await toField.setValue(to);
-        const callATaxiButton = await $(this.callATaxiButton);
-        await callATaxiButton.waitForDisplayed();
-        await callATaxiButton.click();
+    fillAddresses: async function (from, to) {
+        await $(this.fromField).setValue(from);
+        await $(this.toField).setValue(to);
+        await this.clickElement(this.callATaxiButton);
     },
-    fillPhoneNumber: async function(phoneNumber) {
-        const phoneNumberButton = await $(this.phoneNumberButton);
-        await phoneNumberButton.waitForDisplayed();
-        await phoneNumberButton.click();
-        const phoneNumberModal = await $(this.phoneNumberModal);
-        await phoneNumberModal.waitForDisplayed()
-        const phoneNumberField = await $(this.phoneNumberField);
-        await phoneNumberField.waitForDisplayed();
-        await phoneNumberField.setValue(phoneNumber);
+    
+    fillPhoneNumber: async function (phoneNumber) {
+        try {
+            await this.clickElement(this.phoneNumberButton);
+            await $(this.phoneNumberModal).waitForDisplayed();
+            await $(this.phoneNumberField).setValue(phoneNumber);
+        } catch (error) {
+            console.error('Error filling phone number:', error);
+        }
     },
-    submitPhoneNumber: async function(phoneNumber) {
+
+    submitPhoneNumber: async function (phoneNumber) {
         await this.fillPhoneNumber(phoneNumber);
-        // we are starting interception of request from the moment of method call
         await browser.setupInterceptor();
-        await $(this.nextButton).click();
-        // we should wait for response
-        // eslint-disable-next-line wdio/no-pause
+        await this.clickElement(this.nextButtonAddPhoneModal);
         await browser.pause(2000);
-        const codeField = await $(this.codeField);
-        // collect all responses
+
         const requests = await browser.getRequests();
-        // use first response
-        await expect(requests.length).toBe(1)
-        const code = await requests[0].response.body.code
-        await codeField.setValue(code)
-        await $(this.confirmButton).click()
+        await expect(requests.length).toBe(1);
+        const code = await requests[0].response.body.code;
+
+        await $(this.phoneCodeField).setValue(code);
+        await this.clickElement(this.confirmButtonAddPhoneModal);
     },
+
+    selectSupportiveTariff: async function () {
+        const supportiveTariff = await $(this.supportiveTariff);
+        await supportiveTariff.waitForDisplayed();
+        supportiveTariff.click();
+        return supportiveTariff;
+    },
+
+    addPaymenMethodCard: async function (cardNumber, cardCode) {
+        await this.clickElement(this.paymentMethodButton);
+        await this.clickElement(this.addCardButton);
+        await $(this.cardNumberField).setValue(cardNumber);
+        await $(this.cardCodeField).setValue(cardCode);
+        await $(this.paymentMethodModal).waitForDisplayed();
+        await this.clickElement(this.linkCardButton);
+        await this.clickElement(this.paymentMethodModalCloseButton);
+    },
+
+    addMessageToTheDriver: async function (message) {
+        await $(this.messageToTheDriverField).waitForDisplayed();
+        await $(this.messageToTheDriverField).setValue(message);
+    },
+
+    addBlanketAndHandkerchiefs: async function () {
+        await this.clickElement(this.blanketButton);
+    },
+
+    addIceCream: async function (qty) {
+        await this.clickElement(this.iceCreamPlusButton);
+        for (let i = 0; i < qty - 1; i++) {
+            await this.clickElement(this.iceCreamPlusButton); // Click again for additional ice creams
+        }
+    },
+
+    placeOrder: async function () {
+        await this.clickElement(this.orderButton);
+    }
 };
